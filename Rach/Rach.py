@@ -77,6 +77,7 @@ class Rach:
         self.pub_topics = {}
         self.sub_topics = {}
         self.sock = None
+        self.on_start = None
 
     @staticmethod
     def prep_path(path, cred):
@@ -102,13 +103,9 @@ class Rach:
         """
         self.killed = False
         self.connected = False
+        self.on_start = on_start
         self.sock_manager_thread = threading.Thread(target=self.sock_manager)
         self.sock_manager_thread.start()
-        # Todo: block till connect
-        time.sleep(1)
-        # Todo: implement on_start call. currently dummy for consistency with RachJs
-        if on_start is not None:
-            on_start()
 
     def reconnect(self):
         """Reconnect to the Rach Server
@@ -119,6 +116,7 @@ class Rach:
         """Disconnect from the Rach Server
         """
         self.killed = True
+        self.on_start = None
         self.rm_all_sub()
         self.rm_all_pub()
         if self.sock is not None:
@@ -226,6 +224,10 @@ class Rach:
         if typ == 'auth':
             if not msg.get('data', {}).get('success', False):
                 self.stop()
+            else:
+                if self.on_start is not None:
+                    self.on_start()
+                    self.on_start = None
         elif typ == 'err':
             if matcher is not None and matcher in self.request_map:
                 _, _, cb, args = self.request_map.pop(matcher)
